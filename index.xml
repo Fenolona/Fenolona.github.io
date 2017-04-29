@@ -7,7 +7,454 @@
     <language>en-us</language>
     <author>Johnsondu</author>
     
-    <updated>Thu, 27 Apr 2017 09:00:28 CST</updated>
+    <updated>Sat, 29 Apr 2017 21:04:28 CST</updated>
+    
+    <item>
+      <title>C&#43;&#43;11的智能指针</title>
+      <link>https://fenolona.github.io/post/smartpointer/</link>
+      <pubDate>Sat, 29 Apr 2017 21:04:28 CST</pubDate>
+      <author>Johnsondu</author>
+      <guid>https://fenolona.github.io/post/smartpointer/</guid>
+      <description>&lt;hr /&gt;
+
+&lt;p&gt;讨论C++11的智能指针的相关实现与区别，包含auto_ptr, share_ptr, unique_ptr以及weak_ptr。&lt;/p&gt;
+
+&lt;p&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文主要翻译自&lt;/strong&gt;
+&lt;a href=&#34;http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers&#34;&gt;http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;##1. 传统指针存在的问题
+传统指针存在诸多的问题，比如指针所指向的对象的生命周期问题，挂起引用(dangling references)，以及内存泄露(memory leaks).
+如下是一个传统指针的使用过程&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;void Foo() {
+    int *iPtr = new int[5];
+    // manipulate the memory block
+    // ...
+    // ...
+    // ...
+    delete[] iPtr;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;以上代码将正常运行且内存将被合理释放，但是使用指针常会发生一些意想不到的事情，比如访问一个非法的内存单元，除0操作，以及根据一些判断条件处理的返回return 语句。&lt;/p&gt;
+
+&lt;p&gt;##2. 什么是智能指针(Smart Pointer)
+智能指针是RAII（Resource Acquisition is initialization）用来动态的分配内存。它提供了普通指针的所有接口外加少数异常处理。在构造阶段，它将分配内存，而在非其作用域内将自动释放所占有的内存。
+在C++98中，使用 &lt;code&gt;auto_ptr&lt;/code&gt;来解决上述问题。
+###2.1 auto_ptr&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;#include &amp;lt;iostream&amp;gt;
+#include &amp;lt;memory&amp;gt;
+using namespace std;
+
+class Test {
+public:
+    Test(int a = 0) : m_a(a) {}
+    ~Test() {
+        cout &amp;lt;&amp;lt; &amp;quot;Calling destructor&amp;quot; &amp;lt;&amp;lt; endl;
+    }
+
+public:
+    int m_a;
+};
+
+int main()
+{
+    auto_ptr&amp;lt;Test&amp;gt; p(new Test(5));
+    cout &amp;lt;&amp;lt; p-&amp;gt;m_a &amp;lt;&amp;lt; endl;
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;运行结果：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://img.blog.csdn.net/20150722103832858&#34; alt=&#34;auto_ptr运行结果示例&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;上述代码将智能的释放相关的内存。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;#include &amp;lt;iostream&amp;gt;
+#include &amp;lt;memory&amp;gt;
+
+using namespace std;
+
+class Test {
+public:
+    Test(int a = 0) : m_a(a) {}
+    ~Test() {
+        cout &amp;lt;&amp;lt; &amp;quot;Calling destructor&amp;quot; &amp;lt;&amp;lt; endl;
+    }
+
+public:
+    int m_a;
+};
+
+void Fun()
+{
+    int a = 0, b = 5, c;
+    if(a == 0) {
+        throw &amp;quot;Invalid divisor&amp;quot;;
+    }
+    c = b / a;
+    return;
+}
+
+int main()
+{
+    try {
+        auto_ptr&amp;lt;Test&amp;gt; p(new Test(5));
+        Fun();
+        cout &amp;lt;&amp;lt; p-&amp;gt;m_a &amp;lt;&amp;lt; endl;
+    }
+    catch(...) {
+        cout &amp;lt;&amp;lt; &amp;quot;Something has gone wrong&amp;quot; &amp;lt;&amp;lt; endl;
+    }
+
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;在上述代码中，即使异常抛出，指针照样被正常释放。这是因为当异常抛出时，栈松绑(stack unwinding)。 当所有属于&lt;code&gt;try block&lt;/code&gt;的本地对象被销毁时，指针&lt;code&gt;p&lt;/code&gt;不在作用域中而被释放。&lt;/p&gt;
+
+&lt;p&gt;####问题1.
+至少从目前来说&lt;code&gt;auto_ptr&lt;/code&gt;是智能的。但是它有一个非常本质的缺点：&lt;strong&gt;&lt;code&gt;auto_ptr&lt;/code&gt;会传递它本身的ownership当其被赋值给另一个&lt;code&gt;auto_ptr&lt;/code&gt;对象。&lt;/strong&gt;正如下述程序所示，一个&lt;code&gt;auto_ptr&lt;/code&gt;对象传递给函数&lt;code&gt;Fun()&lt;/code&gt;中的&lt;code&gt;auto_ptr&lt;/code&gt;对象时，其ownership,或者说是smartness将不再返回给原&lt;code&gt;auto_ptr&lt;/code&gt;所指向的p。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;#include &amp;lt;iostream&amp;gt;
+#include &amp;lt;memory&amp;gt;
+
+using namespace std;
+
+class Test {
+public:
+    Test(int a = 0) : m_a(a) {}
+    ~Test() {
+        cout &amp;lt;&amp;lt; &amp;quot;Calling destructor&amp;quot; &amp;lt;&amp;lt; endl;
+    }
+
+public:
+    int m_a;
+};
+
+void Fun(auto_ptr&amp;lt;Test&amp;gt; p1)
+{
+    cout &amp;lt;&amp;lt; p1-&amp;gt;m_a &amp;lt;&amp;lt; endl;
+    cout &amp;lt;&amp;lt; &amp;quot;Fun() end&amp;quot; &amp;lt;&amp;lt; endl;
+}
+
+int main()
+{
+    auto_ptr&amp;lt;Test&amp;gt; p(new Test(5));
+    Fun(p);
+    cout &amp;lt;&amp;lt; p-&amp;gt;m_a &amp;lt;&amp;lt; endl;
+
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;运行结果：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://img.blog.csdn.net/20150722110047619&#34; alt=&#34;auto_ptr存在传递ownership的缺点&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;以上程序将crash因为存在野指针&lt;code&gt;auto_ptr&lt;/code&gt;。上述代码奔溃的主要原因是，原先的&lt;code&gt;p&lt;/code&gt;占有对其自身分配内存的管理权。然而通过&lt;code&gt;Fun()&lt;/code&gt;函数将其管理权转给&lt;code&gt;p1&lt;/code&gt;，此时因为&lt;code&gt;p1&lt;/code&gt;的smartness，在其结束时将释放其所指向的内存块。而此时原先的&lt;code&gt;p&lt;/code&gt;将再拥有任何内存，而导致在访问时出现了空指针，野指针的引用问题。
+####问题2.
+&lt;strong&gt;&lt;code&gt;auto_ptr&lt;/code&gt;不能使用于数组对象&lt;/strong&gt;。 这里的意思是不能使用于操作符&lt;code&gt;new[]&lt;/code&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;int main()
+{
+    auto_ptr&amp;lt;Test&amp;gt; p(new Test[5]);
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;上述代码将runtime error。因为对于&lt;code&gt;auto_ptr&lt;/code&gt;而言，其调用的是&lt;code&gt;delete&lt;/code&gt;而非&lt;code&gt;delete []&lt;/code&gt;。
+####问题3.
+&lt;strong&gt;&lt;code&gt;auto_ptr&lt;/code&gt;不能使用于一些标准的容器库&lt;/strong&gt;。比如&lt;code&gt;vector&lt;/code&gt;，&lt;code&gt;list&lt;/code&gt;，&lt;code&gt;map&lt;/code&gt;等等。&lt;/p&gt;
+
+&lt;p&gt;C++11提出了新型的智能指针，并且都赋予了其相应的意图。&lt;/p&gt;
+
+&lt;p&gt;###2.2 shared_ptr&lt;/p&gt;
+
+&lt;p&gt;####creation :
+shared_ptr设计的目的很简单：多个共享指针可以指向同一个对象，而当最后一个共享指针在作用域范围内结束时，内存才会被自动的释放。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;int main()
+{
+    // share_ptr 常规的创建过程
+    shared_ptr&amp;lt;int&amp;gt; sptr1( new int );
+    // 使用make_shared 来加速创建过程
+    // shared_ptr 自动分配内存，并且保证引用计数
+    // 而make_shared则是按照这种方法来初始化
+    shared_ptr&amp;lt;int&amp;gt; sptr2 = make_shared&amp;lt;int&amp;gt;( 100 );
+    // 可以通过use_count() 来查看引用计数
+    cout &amp;lt;&amp;lt; &amp;quot;sptr2 referenced count: &amp;quot; &amp;lt;&amp;lt; sptr2.use_count() &amp;lt;&amp;lt; endl;
+    shared_ptr&amp;lt;int&amp;gt; sptr3 = sptr2;
+    cout &amp;lt;&amp;lt; &amp;quot;sptr2 referenced count: &amp;quot; &amp;lt;&amp;lt; sptr2.use_count() &amp;lt;&amp;lt; endl;
+    cout &amp;lt;&amp;lt; &amp;quot;*sptr2 = &amp;quot; &amp;lt;&amp;lt; *sptr2 &amp;lt;&amp;lt; endl;
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;运行结果：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://img.blog.csdn.net/20150722143537619&#34; alt=&#34;shared_ptr 运行结果&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;上述代码创建了一个&lt;code&gt;shared_ptr&lt;/code&gt;指针指向了一个装着整型值且值为100的内存块，并且引用计数为1,。当其他共享指针通过&lt;code&gt;sptr1&lt;/code&gt;来创建时，引用计数将为2。这种引用称为强引用&lt;code&gt;strong reference&lt;/code&gt;。除此之外，还有弱引用&lt;code&gt;weak reference&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;####destruction ：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;#include &amp;lt;iostream&amp;gt;
+#include &amp;lt;memory&amp;gt;
+
+using namespace std;
+
+class Test {
+public:
+    Test(int a = 0) : m_a(a) {}
+    ~Test() {
+        cout &amp;lt;&amp;lt; &amp;quot;Calling destructor&amp;quot; &amp;lt;&amp;lt; endl;
+    }
+
+public:
+    int m_a;
+};
+
+
+int main()
+{
+    // 如果用以下形式，则只会调用delete，则不会调用
+    // delete[ ]; 此时只会调用一次析构函数
+    shared_ptr&amp;lt;Test&amp;gt; sptr1(new Test[5]);
+
+    // 采用以下形式，lambda表达式，显示调用
+    // delete[] 来删除所有的对象。
+    shared_ptr&amp;lt;Test&amp;gt; sptr2(new Test[5],
+                           [](Test* p) {delete[] p;});
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;用户可以显式的调用函数，lambda表达式，函数对象来调用对于&lt;code&gt;shared_ptr&lt;/code&gt;为数组对象的析构函数&lt;code&gt;delete[]&lt;/code&gt;。
+####Interface（接口）
+&lt;code&gt;shared_ptr&lt;/code&gt;提供解引用&lt;code&gt;*&lt;/code&gt;， 以及&lt;code&gt;-&amp;gt;&lt;/code&gt;来普通指针的相关操作。同时，还提供了以下的接口:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;get()&lt;/code&gt;： To get the resource associated with the &lt;code&gt;shared_ptr&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;reset()&lt;/code&gt;： To yield the ownership of the associated memory block. If this is the last &lt;code&gt;shared_ptr&lt;/code&gt;owning the resource, then the resource is released automatically.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;unique&lt;/code&gt;: To know whether the resource is managed by only this &lt;code&gt;shared_ptr&lt;/code&gt; instance.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;operator bool&lt;/code&gt;: To check whether the &lt;code&gt;shared_ptr&lt;/code&gt; owns a memory block or not. Can be used with an &lt;code&gt;if&lt;/code&gt; condition.
+####Issue（问题）&lt;/li&gt;
+&lt;li&gt;当一个内存块与&lt;code&gt;shared_ptr&lt;/code&gt;绑定相关，并且属于不同组时，将会发生错误。所有的&lt;code&gt;shared_ptr&lt;/code&gt;共享一个组的同一个共享引用。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt; int main()
+{
+	    shared_ptr&amp;lt;int&amp;gt; sptr1(new int);
+	    shared_ptr&amp;lt;int&amp;gt; sptr2 = sptr1;
+	    shared_ptr&amp;lt;int&amp;gt; sptr3;
+	    sptr3 = sptr2;
+	    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;以下表格给出了相应的引用计数
+ &lt;img src=&#34;http://img.blog.csdn.net/20150722150330985&#34; alt=&#34;shared_ptr结果&#34; /&gt;
+ 以上代码运行正常。&lt;/p&gt;
+
+&lt;p&gt;然而当使用以下代码时：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;```
+int main() 
+{
+    int *p = new int;
+    shared_ptr&amp;lt;int&amp;gt; sptr1(p);
+    shared_ptr&amp;lt;int&amp;gt; sptr2(p);
+    return 0;
+}
+```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;引用计数表如下：
+&lt;img src=&#34;http://img.blog.csdn.net/20150722151016970&#34; alt=&#34;shared_ptr crash&#34; /&gt;
+为了避免这种情况的发生，最好不用从裸指针中建立共享指针。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;另一个问题是，正如上述问题，如果从一个裸指针中创建一个共享指针，只有一个共享指针时，可以正常运行，但是当裸指针被释放时，共享指针也会crash。&lt;/li&gt;
+&lt;li&gt;循环引用时，如果资源被非恰当释放，也会出现问题。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code&gt;#include &amp;lt;iostream&amp;gt;
+#include &amp;lt;memory&amp;gt;
+
+using namespace std;
+
+class B;
+class A
+{
+public:
+    A() : m_sptrB(nullptr) {} ;
+    ~A() {
+        cout &amp;lt;&amp;lt; &amp;quot;A is destroyed&amp;quot; &amp;lt;&amp;lt; endl;
+    }
+    shared_ptr&amp;lt;B&amp;gt; m_sptrB;
+};
+
+class B
+{
+public:
+    B() : m_sptrA(nullptr) {};
+    ~B() {
+        cout &amp;lt;&amp;lt; &amp;quot;B is destroyed&amp;quot; &amp;lt;&amp;lt; endl;
+    }
+    shared_ptr&amp;lt;A&amp;gt; m_sptrA;
+};
+
+int main()
+{
+    shared_ptr&amp;lt;B&amp;gt; sptrB(new B);
+    shared_ptr&amp;lt;A&amp;gt; sptrA(new A);
+    sptrB-&amp;gt;m_sptrA = sptrA;
+    sptrA-&amp;gt;m_sptrB = sptrB;
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;当类A包含了指向B的共享指针，而类B包含了指向A的共享指针时，&lt;code&gt;sptrA&lt;/code&gt;和&lt;code&gt;sptrB&lt;/code&gt;相关的资源都将不会被释放。结果如下图：
+&lt;img src=&#34;http://img.blog.csdn.net/20150722152409811&#34; alt=&#34;cyclic reference crash example&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;###2.3 weak_ptr
+一个弱指针，提供的是一种共享语义定义而不是拥有语义定义。这就意味着一个弱指针可以通过&lt;code&gt;shared_ptr&lt;/code&gt;共享资源。所以要创建弱指针，必须是已经拥有资源但是是一个共享指针。&lt;/p&gt;
+
+&lt;p&gt;一个弱指针并不允许诸如普通指针所提供的&lt;code&gt;*&lt;/code&gt;和&lt;code&gt;-&amp;gt;&lt;/code&gt;。因为他并不是资源的拥有者。&lt;/p&gt;
+
+&lt;p&gt;那么如何利用弱指针呢？
+&lt;strong&gt;&lt;code&gt;weak_ptr只能用于跟踪一个共享的资源，但并不实际拥有，也不会阻碍资源的释放。读取共享资源前需要先执行lock，得到shared_ptr后才能进行访问。&lt;/code&gt;
+&lt;code&gt;当两个对象需要互相引用时，我们总希望其中一个对象拥有另一个对象的强引用，而另一个对象拥有自己的弱引用，如果两个对象都是强引用，则容易引起循环引用，导致两个对象都无法正确释放。&lt;/code&gt;&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;用&lt;code&gt;weak_ptr&lt;/code&gt;作为一个类似&lt;code&gt;share_ptr&lt;/code&gt;但却能悬浮的指针
+有一个矛盾，一个灵巧指针可以像&lt;code&gt;shared_ptr&lt;/code&gt; 一样方便，但又不参与管理被指对象的所有权。换句话说，需要一个像&lt;code&gt;shared_ptr&lt;/code&gt;但又不影响对象引用计数的指针。这类指针会有一个&lt;code&gt;shared_ptr&lt;/code&gt;没有的问题：被指的对象有可能已经被销毁。一个良好的灵巧指针应该能处理这种情况，通过跟踪什么时候指针会悬浮，比如在被指对象不复存在的时候。这正是&lt;code&gt;weak_ptr&lt;/code&gt;这类型灵巧指针所能做到的。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;weak_ptr&lt;/code&gt;一般是通过&lt;code&gt;shared_ptr&lt;/code&gt;来构造的。当使用&lt;code&gt;shared_ptr&lt;/code&gt;来初始化&lt;code&gt;weak_ptr&lt;/code&gt;时，&lt;code&gt;weak_ptr&lt;/code&gt;就指向了相同的地方，但是不改变所指对象的引用计数。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;int main()
+{
+    shared_ptr&amp;lt;A&amp;gt; sptr&amp;lt;new A&amp;gt;
+    weak_ptr&amp;lt;A&amp;gt; wptr(sptr);
+    weak_ptr&amp;lt;A&amp;gt; wptr1 = wptr; 
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://img.blog.csdn.net/20150723144259417&#34; alt=&#34;weak_ptr创建引用情况&#34; /&gt;
+从上图可以看书，通过将一个&lt;code&gt;weak_ptr&lt;/code&gt;赋值给另一个时会增加其弱引用计数。&lt;/p&gt;
+
+&lt;p&gt;如果弱引用指针所指向的资源，被其共享指针所释放时，这时候弱指针将会过期。如何检测一个弱指针是否指向一个合法的资源呢？有以下两种途径。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;调用&lt;code&gt;use_count()&lt;/code&gt;来得到引用计数。注意这里返回的是强引用计数。&lt;/li&gt;
+&lt;li&gt;调用&lt;code&gt;expired()&lt;/code&gt;函数，这比调用&lt;code&gt;use_count&lt;/code&gt;要快的多。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;同时，我们可以通过对一个&lt;code&gt;weak_ptr&lt;/code&gt;调用函数&lt;code&gt;lock()&lt;/code&gt;来得到一个&lt;code&gt;shared_ptr&lt;/code&gt;。或者直接对一个&lt;code&gt;weak_ptr&lt;/code&gt;进行强制转换。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;int main()
+{
+    
+    shared_ptr&amp;lt;A&amp;gt; sptr&amp;lt;new A&amp;gt;
+    weak_ptr&amp;lt;A&amp;gt; wptr(sptr);
+    shared_ptr&amp;lt;A&amp;gt; sptr2 = wptr.lock(); 
+    
+    
+    shared_ptr&amp;lt;B&amp;gt; sptrB(new B);
+    shared_ptr&amp;lt;A&amp;gt; sptrA(new A);
+    sptrB-&amp;gt;m_sptrA = sptrA;
+    sptrA-&amp;gt;m_sptrB = sptrB;
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;如上方法将增加强引用计数。&lt;/p&gt;
+
+&lt;p&gt;以下例子将展示如何使用&lt;code&gt;weak_ptr&lt;/code&gt;解决循环引用的问题。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;#include &amp;lt;iostream&amp;gt;
+#include &amp;lt;memory&amp;gt;
+
+using namespace std;
+
+class B;
+class A
+{
+public:
+    A() : m_a(5) {} ;
+    ~A() {
+        cout &amp;lt;&amp;lt; &amp;quot;A is destroyed&amp;quot; &amp;lt;&amp;lt; endl;
+    }
+    void PrintSpB() ;
+    weak_ptr&amp;lt;B&amp;gt; m_sptrB;
+    int m_a;
+};
+
+class B {
+public:
+    B() : m_b(10) {} ;
+    ~B() {
+        cout &amp;lt;&amp;lt; &amp;quot;B is destroyed&amp;quot; &amp;lt;&amp;lt; endl;
+    }
+    weak_ptr&amp;lt;A&amp;gt; m_sptrA;
+    int m_b;
+};
+
+void A::PrintSpB()
+{
+    if( !m_sptrB.expired() )
+        cout &amp;lt;&amp;lt; m_sptrB.lock()-&amp;gt;m_b &amp;lt;&amp;lt; endl;
+}
+
+int main()
+{
+    shared_ptr&amp;lt;B&amp;gt; sptrB(new B);
+    shared_ptr&amp;lt;A&amp;gt; sptrA(new A);
+    sptrB-&amp;gt;m_sptrA = sptrA;
+    sptrA-&amp;gt;m_sptrB = sptrB;
+    sptrA-&amp;gt;PrintSpB();
+
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;img src=&#34;http://img.blog.csdn.net/20151110142701562&#34; alt=&#34;上述程序运行结果&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;###2.4 unique_ptr
+&lt;code&gt;unique_ptr&lt;/code&gt;几乎是易出错的&lt;code&gt;auto_ptr&lt;/code&gt;的另一种形式。&lt;code&gt;unique_ptr&lt;/code&gt;遵循专用所有权语义。在任何时刻，资源只被唯一的一个&lt;code&gt;unique_ptr&lt;/code&gt;所占有。当&lt;code&gt;auto_ptr&lt;/code&gt;不在作用域范围内时，资源就会被释放。当一个资源被其他资源重写时，如果先前的资源已经被释放，这保证了相关的资源也会被释放。&lt;/p&gt;
+
+&lt;p&gt;####creation（创建）
+&lt;code&gt;unique_ptr&lt;/code&gt;创建的过程和&lt;code&gt;shared_ptr&lt;/code&gt;创建的过程大同小异，所不同的是创建的数组形式的对象。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;unique_ptr&amp;lt;int&amp;gt; uptr(new int);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;unique_ptr&lt;/code&gt;提供了专用创建数组对象的析构调用&lt;code&gt;delete[]&lt;/code&gt;而不是&lt;code&gt;delete&lt;/code&gt;当其不在作用域范围内。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-C++&#34;&gt;unique_ptr&amp;lt;int[]&amp;gt; uptr1(new int[5]);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;strong&gt;对于资源的拥有权(ownership)可以从一个&lt;code&gt;unique_ptr&lt;/code&gt;通过另一个进行赋值来传递。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;需要记住的是：&lt;code&gt;unique_ptr&lt;/code&gt;并不提供复制机制&lt;code&gt;copy semantics&lt;/code&gt;（包括复制赋值&lt;code&gt;copy assignment&lt;/code&gt;以及复制构造函数&lt;code&gt;copy construction&lt;/code&gt;）而是一种移动机制。&lt;/p&gt;
+
+&lt;p&gt;####Interface（接口）
+&lt;code&gt;unique_ptr&lt;/code&gt;提供的接口与普通常规指针的接口非常相似，但是并不提供指针运算。
+&lt;code&gt;unique_ptr&lt;/code&gt;提供&lt;code&gt;release()&lt;/code&gt;函数来进行&lt;code&gt;yield the ownership&lt;/code&gt;。
+&lt;code&gt;release()&lt;/code&gt;和&lt;code&gt;reset()&lt;/code&gt;函数的区别在于，&lt;code&gt;reset()&lt;/code&gt;会对资源进行销毁。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;参考文献：&lt;/strong&gt;
+&amp;gt;&lt;a href=&#34;http://blog.csdn.net/coolmeme/article/details/43266319&#34;&gt;http://blog.csdn.net/coolmeme/article/details/43266319&lt;/a&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a href=&#34;http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers&#34;&gt;http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;</description>
+    </item>
     
     <item>
       <title>C&#43;&#43;中的Sequence Point，构造函数等问题</title>

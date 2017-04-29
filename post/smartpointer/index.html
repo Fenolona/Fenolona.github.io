@@ -1,0 +1,596 @@
+<!DOCTYPE HTML>
+
+<html lang="en-us">
+
+<head>
+	<meta charset="utf-8">
+	<title>C&#43;&#43;11的智能指针 - CoderDu</title>
+	<meta name="author" content="map[name:Johnsondu email:qlduzhlin@gmail.com]">
+
+	
+	
+	<meta name="description" content="">
+	
+
+	
+	<meta name="HandheldFriendly" content="True">
+	<meta name="MobileOptimized" content="320">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+    
+	<link rel="canonical" href="https://fenolona.github.io/post/smartpointer/">
+	<link href="https://fenolona.github.io//favicon.png" rel="shortcut icon">
+	<link href="https://fenolona.github.io//css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+	<link href="https://fenolona.github.io//css/font-awesome.min.css" media="screen, projection" rel="stylesheet" type="text/css">
+	
+	<link href='http://fonts.googleapis.com/css?family=Nunito:400,300,700' rel='stylesheet' type='text/css'>
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+	
+  
+
+</head>
+<script src="https://fenolona.github.io/js/highlight.js"></script>
+<link rel="stylesheet" href="https://fenolona.github.io/css/idea.css">
+<script>hljs.initHighlightingOnLoad();</script>
+
+<body>
+	<div class="container">
+		<div class="left-col">
+			<div class="intrude-less">
+			<header id="header" class="inner"><div class="profilepic">
+	
+	
+	<script src="https://fenolona.github.io//js/md5.js"></script>
+	<script type="text/javascript">
+		$(function(){
+			$('.profilepic').append("<img src='/images/avatar.png' alt='Profile Picture' style='width: 160px;' />");
+		});
+	</script>
+	
+	
+</div>
+
+<nav id="main-nav"><h1> <a href="/">Johnsondu</a> </h1>
+
+<section class="aboutme">
+  <p class="header-subtitle">
+    <font color="#EAEBD7">
+        <em>
+            Tech Change Life
+        </em>
+    </font>
+  </p>
+</section>
+</br>
+<ul class="main">
+    <li><a href="/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a href="/post/">Archives</a></li>
+</ul>
+
+
+</nav>
+<nav id="sub-nav">
+	<div class="social">
+		
+			<a class="email" href='mailto:qlduzhlin@gmail.com' title="Email">Email</a>
+		
+		
+			<a class="facebook" href='http://www.facebook.com/anthony.du.31' title="Facebook">Facebook</a>
+		
+		
+		
+		
+			<a class="github" href='https://github.com/Fenolona' title="GitHub">GitHub</a>
+		
+		
+		
+		
+			<a class="linkedin" href='http://www.linkedin.com/in/johnson-du-ucas' title="LinkedIn">LinkedIn</a>
+		
+		
+		
+		
+		
+		
+		
+    	
+    	
+	</div>
+</nav>
+</header>
+			</div>
+		</div>
+		<div class="mid-col">
+			
+			<div class="mid-col-container">
+				<div id="content" class="inner">
+					<div itemscope itemtype="http://schema.org/Blog">
+					<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+    <h1 class="title" itemprop="name">C&#43;&#43;11的智能指针</h1>
+	<div class="entry-content" itemprop="articleBody"><hr />
+
+<p>讨论C++11的智能指针的相关实现与区别，包含auto_ptr, share_ptr, unique_ptr以及weak_ptr。</p>
+
+<p></p>
+
+<p><strong>本文主要翻译自</strong>
+<a href="http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers">http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers</a></p>
+
+<p>##1. 传统指针存在的问题
+传统指针存在诸多的问题，比如指针所指向的对象的生命周期问题，挂起引用(dangling references)，以及内存泄露(memory leaks).
+如下是一个传统指针的使用过程</p>
+
+<pre><code class="language-C++">void Foo() {
+    int *iPtr = new int[5];
+    // manipulate the memory block
+    // ...
+    // ...
+    // ...
+    delete[] iPtr;
+}
+</code></pre>
+
+<p>以上代码将正常运行且内存将被合理释放，但是使用指针常会发生一些意想不到的事情，比如访问一个非法的内存单元，除0操作，以及根据一些判断条件处理的返回return 语句。</p>
+
+<p>##2. 什么是智能指针(Smart Pointer)
+智能指针是RAII（Resource Acquisition is initialization）用来动态的分配内存。它提供了普通指针的所有接口外加少数异常处理。在构造阶段，它将分配内存，而在非其作用域内将自动释放所占有的内存。
+在C++98中，使用 <code>auto_ptr</code>来解决上述问题。
+###2.1 auto_ptr</p>
+
+<pre><code class="language-C++">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+using namespace std;
+
+class Test {
+public:
+    Test(int a = 0) : m_a(a) {}
+    ~Test() {
+        cout &lt;&lt; &quot;Calling destructor&quot; &lt;&lt; endl;
+    }
+
+public:
+    int m_a;
+};
+
+int main()
+{
+    auto_ptr&lt;Test&gt; p(new Test(5));
+    cout &lt;&lt; p-&gt;m_a &lt;&lt; endl;
+    return 0;
+}
+</code></pre>
+
+<p>运行结果：</p>
+
+<p><img src="http://img.blog.csdn.net/20150722103832858" alt="auto_ptr运行结果示例" /></p>
+
+<p>上述代码将智能的释放相关的内存。</p>
+
+<pre><code class="language-C++">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+using namespace std;
+
+class Test {
+public:
+    Test(int a = 0) : m_a(a) {}
+    ~Test() {
+        cout &lt;&lt; &quot;Calling destructor&quot; &lt;&lt; endl;
+    }
+
+public:
+    int m_a;
+};
+
+void Fun()
+{
+    int a = 0, b = 5, c;
+    if(a == 0) {
+        throw &quot;Invalid divisor&quot;;
+    }
+    c = b / a;
+    return;
+}
+
+int main()
+{
+    try {
+        auto_ptr&lt;Test&gt; p(new Test(5));
+        Fun();
+        cout &lt;&lt; p-&gt;m_a &lt;&lt; endl;
+    }
+    catch(...) {
+        cout &lt;&lt; &quot;Something has gone wrong&quot; &lt;&lt; endl;
+    }
+
+    return 0;
+}
+</code></pre>
+
+<p>在上述代码中，即使异常抛出，指针照样被正常释放。这是因为当异常抛出时，栈松绑(stack unwinding)。 当所有属于<code>try block</code>的本地对象被销毁时，指针<code>p</code>不在作用域中而被释放。</p>
+
+<p>####问题1.
+至少从目前来说<code>auto_ptr</code>是智能的。但是它有一个非常本质的缺点：<strong><code>auto_ptr</code>会传递它本身的ownership当其被赋值给另一个<code>auto_ptr</code>对象。</strong>正如下述程序所示，一个<code>auto_ptr</code>对象传递给函数<code>Fun()</code>中的<code>auto_ptr</code>对象时，其ownership,或者说是smartness将不再返回给原<code>auto_ptr</code>所指向的p。</p>
+
+<pre><code class="language-C++">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+using namespace std;
+
+class Test {
+public:
+    Test(int a = 0) : m_a(a) {}
+    ~Test() {
+        cout &lt;&lt; &quot;Calling destructor&quot; &lt;&lt; endl;
+    }
+
+public:
+    int m_a;
+};
+
+void Fun(auto_ptr&lt;Test&gt; p1)
+{
+    cout &lt;&lt; p1-&gt;m_a &lt;&lt; endl;
+    cout &lt;&lt; &quot;Fun() end&quot; &lt;&lt; endl;
+}
+
+int main()
+{
+    auto_ptr&lt;Test&gt; p(new Test(5));
+    Fun(p);
+    cout &lt;&lt; p-&gt;m_a &lt;&lt; endl;
+
+    return 0;
+}
+</code></pre>
+
+<p>运行结果：</p>
+
+<p><img src="http://img.blog.csdn.net/20150722110047619" alt="auto_ptr存在传递ownership的缺点" /></p>
+
+<p>以上程序将crash因为存在野指针<code>auto_ptr</code>。上述代码奔溃的主要原因是，原先的<code>p</code>占有对其自身分配内存的管理权。然而通过<code>Fun()</code>函数将其管理权转给<code>p1</code>，此时因为<code>p1</code>的smartness，在其结束时将释放其所指向的内存块。而此时原先的<code>p</code>将再拥有任何内存，而导致在访问时出现了空指针，野指针的引用问题。
+####问题2.
+<strong><code>auto_ptr</code>不能使用于数组对象</strong>。 这里的意思是不能使用于操作符<code>new[]</code>。</p>
+
+<pre><code class="language-C++">int main()
+{
+    auto_ptr&lt;Test&gt; p(new Test[5]);
+    return 0;
+}
+</code></pre>
+
+<p>上述代码将runtime error。因为对于<code>auto_ptr</code>而言，其调用的是<code>delete</code>而非<code>delete []</code>。
+####问题3.
+<strong><code>auto_ptr</code>不能使用于一些标准的容器库</strong>。比如<code>vector</code>，<code>list</code>，<code>map</code>等等。</p>
+
+<p>C++11提出了新型的智能指针，并且都赋予了其相应的意图。</p>
+
+<p>###2.2 shared_ptr</p>
+
+<p>####creation :
+shared_ptr设计的目的很简单：多个共享指针可以指向同一个对象，而当最后一个共享指针在作用域范围内结束时，内存才会被自动的释放。</p>
+
+<pre><code class="language-C++">int main()
+{
+    // share_ptr 常规的创建过程
+    shared_ptr&lt;int&gt; sptr1( new int );
+    // 使用make_shared 来加速创建过程
+    // shared_ptr 自动分配内存，并且保证引用计数
+    // 而make_shared则是按照这种方法来初始化
+    shared_ptr&lt;int&gt; sptr2 = make_shared&lt;int&gt;( 100 );
+    // 可以通过use_count() 来查看引用计数
+    cout &lt;&lt; &quot;sptr2 referenced count: &quot; &lt;&lt; sptr2.use_count() &lt;&lt; endl;
+    shared_ptr&lt;int&gt; sptr3 = sptr2;
+    cout &lt;&lt; &quot;sptr2 referenced count: &quot; &lt;&lt; sptr2.use_count() &lt;&lt; endl;
+    cout &lt;&lt; &quot;*sptr2 = &quot; &lt;&lt; *sptr2 &lt;&lt; endl;
+    return 0;
+}
+</code></pre>
+
+<p>运行结果：</p>
+
+<p><img src="http://img.blog.csdn.net/20150722143537619" alt="shared_ptr 运行结果" /></p>
+
+<p>上述代码创建了一个<code>shared_ptr</code>指针指向了一个装着整型值且值为100的内存块，并且引用计数为1,。当其他共享指针通过<code>sptr1</code>来创建时，引用计数将为2。这种引用称为强引用<code>strong reference</code>。除此之外，还有弱引用<code>weak reference</code>。</p>
+
+<p>####destruction ：</p>
+
+<pre><code class="language-C++">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+using namespace std;
+
+class Test {
+public:
+    Test(int a = 0) : m_a(a) {}
+    ~Test() {
+        cout &lt;&lt; &quot;Calling destructor&quot; &lt;&lt; endl;
+    }
+
+public:
+    int m_a;
+};
+
+
+int main()
+{
+    // 如果用以下形式，则只会调用delete，则不会调用
+    // delete[ ]; 此时只会调用一次析构函数
+    shared_ptr&lt;Test&gt; sptr1(new Test[5]);
+
+    // 采用以下形式，lambda表达式，显示调用
+    // delete[] 来删除所有的对象。
+    shared_ptr&lt;Test&gt; sptr2(new Test[5],
+                           [](Test* p) {delete[] p;});
+    return 0;
+}
+</code></pre>
+
+<p>用户可以显式的调用函数，lambda表达式，函数对象来调用对于<code>shared_ptr</code>为数组对象的析构函数<code>delete[]</code>。
+####Interface（接口）
+<code>shared_ptr</code>提供解引用<code>*</code>， 以及<code>-&gt;</code>来普通指针的相关操作。同时，还提供了以下的接口:</p>
+
+<ul>
+<li><code>get()</code>： To get the resource associated with the <code>shared_ptr</code>.</li>
+<li><code>reset()</code>： To yield the ownership of the associated memory block. If this is the last <code>shared_ptr</code>owning the resource, then the resource is released automatically.</li>
+<li><code>unique</code>: To know whether the resource is managed by only this <code>shared_ptr</code> instance.</li>
+<li><code>operator bool</code>: To check whether the <code>shared_ptr</code> owns a memory block or not. Can be used with an <code>if</code> condition.
+####Issue（问题）</li>
+<li>当一个内存块与<code>shared_ptr</code>绑定相关，并且属于不同组时，将会发生错误。所有的<code>shared_ptr</code>共享一个组的同一个共享引用。</li>
+</ul>
+
+<pre><code class="language-C++"> int main()
+{
+	    shared_ptr&lt;int&gt; sptr1(new int);
+	    shared_ptr&lt;int&gt; sptr2 = sptr1;
+	    shared_ptr&lt;int&gt; sptr3;
+	    sptr3 = sptr2;
+	    return 0;
+}
+</code></pre>
+
+<p>以下表格给出了相应的引用计数
+ <img src="http://img.blog.csdn.net/20150722150330985" alt="shared_ptr结果" />
+ 以上代码运行正常。</p>
+
+<p>然而当使用以下代码时：</p>
+
+<pre><code>```
+int main() 
+{
+    int *p = new int;
+    shared_ptr&lt;int&gt; sptr1(p);
+    shared_ptr&lt;int&gt; sptr2(p);
+    return 0;
+}
+```
+</code></pre>
+
+<p>引用计数表如下：
+<img src="http://img.blog.csdn.net/20150722151016970" alt="shared_ptr crash" />
+为了避免这种情况的发生，最好不用从裸指针中建立共享指针。</p>
+
+<ul>
+<li>另一个问题是，正如上述问题，如果从一个裸指针中创建一个共享指针，只有一个共享指针时，可以正常运行，但是当裸指针被释放时，共享指针也会crash。</li>
+<li>循环引用时，如果资源被非恰当释放，也会出现问题。</li>
+</ul>
+
+<pre><code>#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+using namespace std;
+
+class B;
+class A
+{
+public:
+    A() : m_sptrB(nullptr) {} ;
+    ~A() {
+        cout &lt;&lt; &quot;A is destroyed&quot; &lt;&lt; endl;
+    }
+    shared_ptr&lt;B&gt; m_sptrB;
+};
+
+class B
+{
+public:
+    B() : m_sptrA(nullptr) {};
+    ~B() {
+        cout &lt;&lt; &quot;B is destroyed&quot; &lt;&lt; endl;
+    }
+    shared_ptr&lt;A&gt; m_sptrA;
+};
+
+int main()
+{
+    shared_ptr&lt;B&gt; sptrB(new B);
+    shared_ptr&lt;A&gt; sptrA(new A);
+    sptrB-&gt;m_sptrA = sptrA;
+    sptrA-&gt;m_sptrB = sptrB;
+    return 0;
+}
+</code></pre>
+
+<p>当类A包含了指向B的共享指针，而类B包含了指向A的共享指针时，<code>sptrA</code>和<code>sptrB</code>相关的资源都将不会被释放。结果如下图：
+<img src="http://img.blog.csdn.net/20150722152409811" alt="cyclic reference crash example" /></p>
+
+<p>###2.3 weak_ptr
+一个弱指针，提供的是一种共享语义定义而不是拥有语义定义。这就意味着一个弱指针可以通过<code>shared_ptr</code>共享资源。所以要创建弱指针，必须是已经拥有资源但是是一个共享指针。</p>
+
+<p>一个弱指针并不允许诸如普通指针所提供的<code>*</code>和<code>-&gt;</code>。因为他并不是资源的拥有者。</p>
+
+<p>那么如何利用弱指针呢？
+<strong><code>weak_ptr只能用于跟踪一个共享的资源，但并不实际拥有，也不会阻碍资源的释放。读取共享资源前需要先执行lock，得到shared_ptr后才能进行访问。</code>
+<code>当两个对象需要互相引用时，我们总希望其中一个对象拥有另一个对象的强引用，而另一个对象拥有自己的弱引用，如果两个对象都是强引用，则容易引起循环引用，导致两个对象都无法正确释放。</code></strong></p>
+
+<p>用<code>weak_ptr</code>作为一个类似<code>share_ptr</code>但却能悬浮的指针
+有一个矛盾，一个灵巧指针可以像<code>shared_ptr</code> 一样方便，但又不参与管理被指对象的所有权。换句话说，需要一个像<code>shared_ptr</code>但又不影响对象引用计数的指针。这类指针会有一个<code>shared_ptr</code>没有的问题：被指的对象有可能已经被销毁。一个良好的灵巧指针应该能处理这种情况，通过跟踪什么时候指针会悬浮，比如在被指对象不复存在的时候。这正是<code>weak_ptr</code>这类型灵巧指针所能做到的。</p>
+
+<p><code>weak_ptr</code>一般是通过<code>shared_ptr</code>来构造的。当使用<code>shared_ptr</code>来初始化<code>weak_ptr</code>时，<code>weak_ptr</code>就指向了相同的地方，但是不改变所指对象的引用计数。</p>
+
+<pre><code class="language-C++">int main()
+{
+    shared_ptr&lt;A&gt; sptr&lt;new A&gt;
+    weak_ptr&lt;A&gt; wptr(sptr);
+    weak_ptr&lt;A&gt; wptr1 = wptr; 
+    return 0;
+}
+</code></pre>
+
+<p><img src="http://img.blog.csdn.net/20150723144259417" alt="weak_ptr创建引用情况" />
+从上图可以看书，通过将一个<code>weak_ptr</code>赋值给另一个时会增加其弱引用计数。</p>
+
+<p>如果弱引用指针所指向的资源，被其共享指针所释放时，这时候弱指针将会过期。如何检测一个弱指针是否指向一个合法的资源呢？有以下两种途径。</p>
+
+<ul>
+<li>调用<code>use_count()</code>来得到引用计数。注意这里返回的是强引用计数。</li>
+<li>调用<code>expired()</code>函数，这比调用<code>use_count</code>要快的多。</li>
+</ul>
+
+<p>同时，我们可以通过对一个<code>weak_ptr</code>调用函数<code>lock()</code>来得到一个<code>shared_ptr</code>。或者直接对一个<code>weak_ptr</code>进行强制转换。</p>
+
+<pre><code class="language-C++">int main()
+{
+    
+    shared_ptr&lt;A&gt; sptr&lt;new A&gt;
+    weak_ptr&lt;A&gt; wptr(sptr);
+    shared_ptr&lt;A&gt; sptr2 = wptr.lock(); 
+    
+    
+    shared_ptr&lt;B&gt; sptrB(new B);
+    shared_ptr&lt;A&gt; sptrA(new A);
+    sptrB-&gt;m_sptrA = sptrA;
+    sptrA-&gt;m_sptrB = sptrB;
+    return 0;
+}
+</code></pre>
+
+<p>如上方法将增加强引用计数。</p>
+
+<p>以下例子将展示如何使用<code>weak_ptr</code>解决循环引用的问题。</p>
+
+<pre><code class="language-C++">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+using namespace std;
+
+class B;
+class A
+{
+public:
+    A() : m_a(5) {} ;
+    ~A() {
+        cout &lt;&lt; &quot;A is destroyed&quot; &lt;&lt; endl;
+    }
+    void PrintSpB() ;
+    weak_ptr&lt;B&gt; m_sptrB;
+    int m_a;
+};
+
+class B {
+public:
+    B() : m_b(10) {} ;
+    ~B() {
+        cout &lt;&lt; &quot;B is destroyed&quot; &lt;&lt; endl;
+    }
+    weak_ptr&lt;A&gt; m_sptrA;
+    int m_b;
+};
+
+void A::PrintSpB()
+{
+    if( !m_sptrB.expired() )
+        cout &lt;&lt; m_sptrB.lock()-&gt;m_b &lt;&lt; endl;
+}
+
+int main()
+{
+    shared_ptr&lt;B&gt; sptrB(new B);
+    shared_ptr&lt;A&gt; sptrA(new A);
+    sptrB-&gt;m_sptrA = sptrA;
+    sptrA-&gt;m_sptrB = sptrB;
+    sptrA-&gt;PrintSpB();
+
+    return 0;
+}
+</code></pre>
+
+<p><img src="http://img.blog.csdn.net/20151110142701562" alt="上述程序运行结果" /></p>
+
+<p>###2.4 unique_ptr
+<code>unique_ptr</code>几乎是易出错的<code>auto_ptr</code>的另一种形式。<code>unique_ptr</code>遵循专用所有权语义。在任何时刻，资源只被唯一的一个<code>unique_ptr</code>所占有。当<code>auto_ptr</code>不在作用域范围内时，资源就会被释放。当一个资源被其他资源重写时，如果先前的资源已经被释放，这保证了相关的资源也会被释放。</p>
+
+<p>####creation（创建）
+<code>unique_ptr</code>创建的过程和<code>shared_ptr</code>创建的过程大同小异，所不同的是创建的数组形式的对象。</p>
+
+<pre><code class="language-C++">unique_ptr&lt;int&gt; uptr(new int);
+</code></pre>
+
+<p><code>unique_ptr</code>提供了专用创建数组对象的析构调用<code>delete[]</code>而不是<code>delete</code>当其不在作用域范围内。</p>
+
+<pre><code class="language-C++">unique_ptr&lt;int[]&gt; uptr1(new int[5]);
+</code></pre>
+
+<p><strong>对于资源的拥有权(ownership)可以从一个<code>unique_ptr</code>通过另一个进行赋值来传递。</strong></p>
+
+<p>需要记住的是：<code>unique_ptr</code>并不提供复制机制<code>copy semantics</code>（包括复制赋值<code>copy assignment</code>以及复制构造函数<code>copy construction</code>）而是一种移动机制。</p>
+
+<p>####Interface（接口）
+<code>unique_ptr</code>提供的接口与普通常规指针的接口非常相似，但是并不提供指针运算。
+<code>unique_ptr</code>提供<code>release()</code>函数来进行<code>yield the ownership</code>。
+<code>release()</code>和<code>reset()</code>函数的区别在于，<code>reset()</code>会对资源进行销毁。</p>
+
+<p><strong>参考文献：</strong>
+&gt;<a href="http://blog.csdn.net/coolmeme/article/details/43266319">http://blog.csdn.net/coolmeme/article/details/43266319</a></p>
+
+<blockquote>
+<p><a href="http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers">http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers</a></p>
+</blockquote></div></article>
+					
+					
+					<section id="comment">
+					    <h1 class="title">Comments</h1>
+					    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+					</section>
+					
+					
+
+
+                    <div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'johnsondu';
+    var disqus_identifier = 'https:\/\/fenolona.github.io\/post\/smartpointer\/';
+    var disqus_title = 'C\x2b\x2b11的智能指针';
+    var disqus_url = 'https:\/\/fenolona.github.io\/post\/smartpointer\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+				    </div>
+				</div>
+			</div>
+			<footer id="footer" class="inner">Copyright &copy; 2017
+
+    Johnsondu
+
+
+<b> Fighting </b>
+<script src="https://fenolona.github.io//js/slash.js"></script>
+<script src="https://fenolona.github.io//js/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script>
+</footer>
+		</div>
+	</div>
+    
+</body>
+</html>
