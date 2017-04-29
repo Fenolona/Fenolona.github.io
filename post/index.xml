@@ -3,7 +3,7 @@
   <channel>
       <title>Posts on CoderDu </title>
       <generator uri="https://gohugo.io">Hugo</generator>
-    <link>https://fenolona.github.io/post/</link>
+    <link>https:://fenolona.github.io/post/</link>
     <language>en-us</language>
     <author>Johnsondu</author>
     
@@ -11,10 +11,10 @@
     
     <item>
       <title>C&#43;&#43;中的Sequence Point，构造函数等问题</title>
-      <link>https://fenolona.github.io/post/sequencepoint/</link>
+      <link>https:://fenolona.github.io/post/sequencepoint/</link>
       <pubDate>Thu, 27 Apr 2017 09:00:28 CST</pubDate>
       <author>Johnsondu</author>
-      <guid>https://fenolona.github.io/post/sequencepoint/</guid>
+      <guid>https:://fenolona.github.io/post/sequencepoint/</guid>
       <description>
 
 &lt;p&gt;本文将简要的讨论以下几个问题&lt;/p&gt;
