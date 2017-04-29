@@ -5,7 +5,7 @@
       <generator uri="https://gohugo.io">Hugo</generator>
     <link>https://fenolona.github.io/</link>
     <language>en-us</language>
-    
+    <author>Johnsondu</author>
     
     <updated>Thu, 27 Apr 2017 09:00:28 CST</updated>
     
@@ -13,7 +13,7 @@
       <title>C&#43;&#43;中的Sequence Point，构造函数等问题</title>
       <link>https://fenolona.github.io/post/sequencepoint/</link>
       <pubDate>Thu, 27 Apr 2017 09:00:28 CST</pubDate>
-      
+      <author>Johnsondu</author>
       <guid>https://fenolona.github.io/post/sequencepoint/</guid>
       <description>
 
