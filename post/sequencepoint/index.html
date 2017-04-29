@@ -1,0 +1,265 @@
+<!DOCTYPE HTML>
+
+<html lang="en-us">
+
+<head>
+	<meta charset="utf-8">
+	<title>C&#43;&#43;中的Sequence Point，构造函数等问题 - CoderDu</title>
+	<meta name="author" content="map[]">
+
+	
+	
+	<meta name="description" content="">
+	
+
+	
+	<meta name="HandheldFriendly" content="True">
+	<meta name="MobileOptimized" content="320">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+    
+	<link rel="canonical" href="https://fenolona.github.io/post/sequencepoint/">
+	<link href="https://fenolona.github.io/favicon.png" rel="shortcut icon">
+	<link href="https://fenolona.github.io/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+	<link href="https://fenolona.github.io/css/font-awesome.min.css" media="screen, projection" rel="stylesheet" type="text/css">
+	
+	<link href='http://fonts.googleapis.com/css?family=Nunito:400,300,700' rel='stylesheet' type='text/css'>
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+	
+  
+
+</head>
+
+
+<body>
+	<div class="container">
+		<div class="left-col">
+			<div class="intrude-less">
+			<header id="header" class="inner"><div class="profilepic">
+	
+	
+	
+</div>
+
+<nav id="main-nav"><ul class="main">
+    <li><a href="/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a href="/post/">Archives</a></li>
+</ul>
+
+</nav>
+<nav id="sub-nav">
+	<div class="social">
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+    	
+    	
+	</div>
+</nav>
+</header>
+			</div>
+		</div>
+		<div class="mid-col">
+			
+			<div class="mid-col-container">
+				<div id="content" class="inner">
+					<div itemscope itemtype="http://schema.org/Blog">
+					<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+    <h1 class="title" itemprop="name">C&#43;&#43;中的Sequence Point，构造函数等问题</h1>
+	<div class="entry-content" itemprop="articleBody">
+
+<p>本文将简要的讨论以下几个问题</p>
+
+<ul>
+<li><strong>什么是*Sequence Point</strong>*</li>
+<li><strong>C++的构造函数为什么没有返回值</strong></li>
+<li><strong>如何显示调用构造函数和析构函数</strong></li>
+<li><strong>拷贝构造函数为什么必须是引用传递</strong></li>
+<li><strong>类成员函数中static和const 不能连用的原因</strong></li>
+</ul>
+
+<p></br></p>
+
+<h2 id="1-什么是-sequence-point">1. 什么是<em>Sequence Point</em></h2>
+
+<p>在现今的笔试中 ，我们经常会遇到如下的问题，当下列语句执行完后，a的值是多少?</p>
+
+<pre><code class="language-C++">int a = 1; // no side effect
+a = a ++;  // side effect
+</code></pre>
+
+<p>答案无非是提供了，1， 2， undefined&hellip;
+其实上述例子，在C++中已经有相应的名词*Sequence Point*。</p>
+
+<pre><code>&gt; A sequence point is a point in the program's exexution sequence where all previous side-effects shall have take place and where all subsequent side-effects shall not have take place.
+</code></pre>
+
+<p>在C++中，表达式计算存在两种类型，一是无副作用的，而是有副作用(<em>side effect</em>)的。 如上述代码所示。
+而一个 <em>sequence point</em> 按照上述定义为，该点前的表达式的所有副作用，在程序执行到达改点之前发生完毕；该点后的表达式的所有副作用，在程序执行到达该点时尚未发生。</p>
+
+<ul>
+<li>法则1 在表达式求值时，在前一个和下一个顺序点之中，一个对象所存储的值至多只能被修改一次。如下图的结果是<em>undefined</em>
+<img src="http://img.blog.csdn.net/20160414204125886" alt="rule 1" /></li>
+<li>法则2 在表达式求值的过程中会更改某个对象的值，要求更改前的值被读取的唯一目的是用来确定存入新值。
+<img src="http://img.blog.csdn.net/20160414204400226" alt="rule 2" /></li>
+</ul>
+
+<p>在C中，规定的*Sequence Point*很少，因为这有益于编译器的优化最大化。</p>
+
+<p></br></p>
+
+<h2 id="2-c-的构造函数为什么没有返回值">2. C++的构造函数为什么没有返回值</h2>
+
+<p>上一个简单的例子，帮助理解与记忆。</p>
+
+<pre><code class="language-C++">class Base {
+// ...
+};
+
+void foo(int a) {
+	// do something... 
+}
+
+void foo(const Base&amp; base) {
+	// do something...
+}
+
+int main()
+{
+	// 如果构造函数返回值，下面的结果将调用哪个函数？
+	foo(Base()); 
+	return 0;
+}
+</code></pre>
+
+<p>很显然，构造函数不设定返回值，是因为构造函数的特殊性质决定的。如果有返回值，那么将会存在很多问题。</p>
+
+<p></br></p>
+
+<h2 id="3-如何显示调用构造函数和析构函数">3. 如何显示调用构造函数和析构函数</h2>
+
+<p>事实上，我们采用*new*操作符时，一般会发生以下三件事情：</p>
+
+<ul>
+<li>调用::operator new 分配所需内存</li>
+<li>调用对象的构造函数</li>
+<li>返回新分配的并构造的对象的指针</li>
+</ul>
+
+<p>我们用以下代码来模拟这个过程。结果说明，我们总是可是显示的调用构造函数和析构函数。</p>
+
+<pre><code class="language-C++">class Base
+{
+public:
+    Base() { cout &lt;&lt; &quot;constructors&quot; &lt;&lt; endl; }
+    ~Base() { cout &lt;&lt; &quot;Destructors&quot; &lt;&lt; endl; }
+};
+
+int main()
+{
+    Base *pb = (Base *)malloc(sizeof(Base));
+    new(pb) Base();
+    pb-&gt;~Base();
+    delete pb;
+
+    return 0;
+}
+</code></pre>
+
+<p></br></p>
+
+<h2 id="4-拷贝构造函数为什么必须是引用传递">4. 拷贝构造函数为什么必须是引用传递</h2>
+
+<p>在深入探讨之前，首先列出拷贝初始化的几种情况：</p>
+
+<ul>
+<li>在使用=定义变量时， 如 <strong>Foo newObj = oldObj</strong>；</li>
+<li>将 一个对象作为实参传递给一个非引用类型的实参；</li>
+<li>从一个返回类型为非引用类型的函数返回一个对象；</li>
+<li>用花括号初始化一个数组中的元素或一个聚合类中的成员；</li>
+<li>某些类类型会对他们所分配的对象使用拷贝初始化。例如，当我们初始化标准库容器或者调用insert或push成员，容器会对其进行拷贝初始化。而用emplace成员创建的元素则都进行直接初始化。</li>
+</ul>
+
+<pre><code class="language-C++">class Base
+{
+public:
+    Base() { cout &lt;&lt; &quot;constructors&quot; &lt;&lt; endl; }
+    Base(const Base bs) {
+        a = bs.num;
+    }
+    ~Base() { cout &lt;&lt; &quot;Destructors&quot; &lt;&lt; endl; }
+
+private:
+    int num;
+};
+</code></pre>
+
+<p>正如上述所说的，在函数调用过程中，具有非引用类型的参数进行拷贝初始化。类似的，当一个具有非引用类型的返回类型时，返回值会被用来初始化调用方的结果。
+<strong>拷贝构造函数被用来初始化非引用类类型参数，如果参数不是引用类型，则将进入死循环&ndash;&gt;因为为了调用拷贝构造函数，必须拷贝它的实参，但为了拷贝实参，我们又需要调用拷贝构造函数，如此无限循环</strong>。</p>
+
+<h2 id="5-类成员函数中static和const-不能连用的原因">5. 类成员函数中static和const 不能连用的原因</h2>
+
+<p>C++的设计准则之一：nonstatic member function必须至少和nonmember function有相同的效率。
+例如：</p>
+
+<pre><code class="language-C++">float magnitude3d(const Point3d *_this) { //... }
+float Point3d::magnitude3d() const { //... }
+</code></pre>
+
+<p>对于后者的nonstatic member function而言，其最终会扩展为：</p>
+
+<pre><code class="language-C++">Point3d Point3d::magnitude(const Point3d *const this) {
+	//...
+}
+</code></pre>
+
+<p>由上可见，<strong>const</strong>修饰的是指针this，而this属于object的范畴。而对于<strong>static</strong>而言，类中的static成员函数或成员变量，不隶属于某个具体的object，其范畴是整个class。因此，修饰的范畴不同，故<strong>static和const在类中对同一个成员函数或者成员变量不能一起使用</strong>。</p>
+</div></article>
+					
+						<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+	
+	
+	
+	
+	</div>
+	
+</div>
+
+					
+					
+					
+
+
+				    </div>
+				</div>
+			</div>
+			<footer id="footer" class="inner">Copyright &copy; 2017
+
+    CoderDu
+
+<a href="blog.csdn.net/zone_programming">Fight</a>
+<script src="https://fenolona.github.io/js/slash.js"></script>
+<script src="https://fenolona.github.io/js/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script>
+</footer>
+		</div>
+	</div>
+	
+</body>
+</html>
