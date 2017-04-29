@@ -15,7 +15,11 @@
       <pubDate>Thu, 27 Apr 2017 09:00:28 CST</pubDate>
       <author>Johnsondu</author>
       <guid>https://fenolona.github.io/post/sequencepoint/</guid>
-      <description>
+      <description>&lt;hr /&gt;
+
+&lt;p&gt;Discuss sequential point, C++ constructors and so on.&lt;/p&gt;
+
+&lt;p&gt;&lt;/p&gt;
 
 &lt;p&gt;本文将简要的讨论以下几个问题&lt;/p&gt;
 
@@ -162,8 +166,7 @@ float Point3d::magnitude3d() const { //... }
 }
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;由上可见，&lt;strong&gt;const&lt;/strong&gt;修饰的是指针this，而this属于object的范畴。而对于&lt;strong&gt;static&lt;/strong&gt;而言，类中的static成员函数或成员变量，不隶属于某个具体的object，其范畴是整个class。因此，修饰的范畴不同，故&lt;strong&gt;static和const在类中对同一个成员函数或者成员变量不能一起使用&lt;/strong&gt;。&lt;/p&gt;
-</description>
+&lt;p&gt;由上可见，&lt;strong&gt;const&lt;/strong&gt;修饰的是指针this，而this属于object的范畴。而对于&lt;strong&gt;static&lt;/strong&gt;而言，类中的static成员函数或成员变量，不隶属于某个具体的object，其范畴是整个class。因此，修饰的范畴不同，故&lt;strong&gt;static和const在类中对同一个成员函数或者成员变量不能一起使用&lt;/strong&gt;。&lt;/p&gt;</description>
     </item>
     
   </channel>

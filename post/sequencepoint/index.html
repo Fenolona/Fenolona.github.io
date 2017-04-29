@@ -102,7 +102,11 @@
 					<div itemscope itemtype="http://schema.org/Blog">
 					<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
     <h1 class="title" itemprop="name">C&#43;&#43;中的Sequence Point，构造函数等问题</h1>
-	<div class="entry-content" itemprop="articleBody">
+	<div class="entry-content" itemprop="articleBody"><hr />
+
+<p>Discuss sequential point, C++ constructors and so on.</p>
+
+<p></p>
 
 <p>本文将简要的讨论以下几个问题</p>
 
@@ -249,8 +253,7 @@ float Point3d::magnitude3d() const { //... }
 }
 </code></pre>
 
-<p>由上可见，<strong>const</strong>修饰的是指针this，而this属于object的范畴。而对于<strong>static</strong>而言，类中的static成员函数或成员变量，不隶属于某个具体的object，其范畴是整个class。因此，修饰的范畴不同，故<strong>static和const在类中对同一个成员函数或者成员变量不能一起使用</strong>。</p>
-</div></article>
+<p>由上可见，<strong>const</strong>修饰的是指针this，而this属于object的范畴。而对于<strong>static</strong>而言，类中的static成员函数或成员变量，不隶属于某个具体的object，其范畴是整个class。因此，修饰的范畴不同，故<strong>static和const在类中对同一个成员函数或者成员变量不能一起使用</strong>。</p></div></article>
 					
 					
 					<section id="comment">
