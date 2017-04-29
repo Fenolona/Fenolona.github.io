@@ -116,8 +116,9 @@
 <p><strong>本文主要翻译自</strong>
 <a href="http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers">http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers</a></p>
 
-<p>##1. 传统指针存在的问题
-传统指针存在诸多的问题，比如指针所指向的对象的生命周期问题，挂起引用(dangling references)，以及内存泄露(memory leaks).
+<h2 id="1-传统指针存在的问题">1 传统指针存在的问题</h2>
+
+<p>传统指针存在诸多的问题，比如指针所指向的对象的生命周期问题，挂起引用(dangling references)，以及内存泄露(memory leaks).
 如下是一个传统指针的使用过程</p>
 
 <pre><code class="language-C++">void Foo() {
@@ -132,10 +133,12 @@
 
 <p>以上代码将正常运行且内存将被合理释放，但是使用指针常会发生一些意想不到的事情，比如访问一个非法的内存单元，除0操作，以及根据一些判断条件处理的返回return 语句。</p>
 
-<p>##2. 什么是智能指针(Smart Pointer)
-智能指针是RAII（Resource Acquisition is initialization）用来动态的分配内存。它提供了普通指针的所有接口外加少数异常处理。在构造阶段，它将分配内存，而在非其作用域内将自动释放所占有的内存。
-在C++98中，使用 <code>auto_ptr</code>来解决上述问题。
-###2.1 auto_ptr</p>
+<h2 id="2-什么是智能指针-smart-pointer">2 什么是智能指针(Smart Pointer)</h2>
+
+<p>智能指针是RAII（Resource Acquisition is initialization）用来动态的分配内存。它提供了普通指针的所有接口外加少数异常处理。在构造阶段，它将分配内存，而在非其作用域内将自动释放所占有的内存。
+在C++98中，使用 <code>auto_ptr</code>来解决上述问题。</p>
+
+<h3 id="2-1-auto-ptr">2.1 auto_ptr</h3>
 
 <pre><code class="language-C++">#include &lt;iostream&gt;
 #include &lt;memory&gt;
@@ -209,8 +212,9 @@ int main()
 
 <p>在上述代码中，即使异常抛出，指针照样被正常释放。这是因为当异常抛出时，栈松绑(stack unwinding)。 当所有属于<code>try block</code>的本地对象被销毁时，指针<code>p</code>不在作用域中而被释放。</p>
 
-<p>####问题1.
-至少从目前来说<code>auto_ptr</code>是智能的。但是它有一个非常本质的缺点：<strong><code>auto_ptr</code>会传递它本身的ownership当其被赋值给另一个<code>auto_ptr</code>对象。</strong>正如下述程序所示，一个<code>auto_ptr</code>对象传递给函数<code>Fun()</code>中的<code>auto_ptr</code>对象时，其ownership,或者说是smartness将不再返回给原<code>auto_ptr</code>所指向的p。</p>
+<h4 id="问题1">问题1</h4>
+
+<p>至少从目前来说<code>auto_ptr</code>是智能的。但是它有一个非常本质的缺点：<strong><code>auto_ptr</code>会传递它本身的ownership当其被赋值给另一个<code>auto_ptr</code>对象。</strong>正如下述程序所示，一个<code>auto_ptr</code>对象传递给函数<code>Fun()</code>中的<code>auto_ptr</code>对象时，其ownership,或者说是smartness将不再返回给原<code>auto_ptr</code>所指向的p。</p>
 
 <pre><code class="language-C++">#include &lt;iostream&gt;
 #include &lt;memory&gt;
@@ -248,9 +252,11 @@ int main()
 
 <p><img src="http://img.blog.csdn.net/20150722110047619" alt="auto_ptr存在传递ownership的缺点" /></p>
 
-<p>以上程序将crash因为存在野指针<code>auto_ptr</code>。上述代码奔溃的主要原因是，原先的<code>p</code>占有对其自身分配内存的管理权。然而通过<code>Fun()</code>函数将其管理权转给<code>p1</code>，此时因为<code>p1</code>的smartness，在其结束时将释放其所指向的内存块。而此时原先的<code>p</code>将再拥有任何内存，而导致在访问时出现了空指针，野指针的引用问题。
-####问题2.
-<strong><code>auto_ptr</code>不能使用于数组对象</strong>。 这里的意思是不能使用于操作符<code>new[]</code>。</p>
+<p>以上程序将crash因为存在野指针<code>auto_ptr</code>。上述代码奔溃的主要原因是，原先的<code>p</code>占有对其自身分配内存的管理权。然而通过<code>Fun()</code>函数将其管理权转给<code>p1</code>，此时因为<code>p1</code>的smartness，在其结束时将释放其所指向的内存块。而此时原先的<code>p</code>将再拥有任何内存，而导致在访问时出现了空指针，野指针的引用问题。</p>
+
+<h4 id="问题2">问题2</h4>
+
+<p><strong><code>auto_ptr</code>不能使用于数组对象</strong>。 这里的意思是不能使用于操作符<code>new[]</code>。</p>
 
 <pre><code class="language-C++">int main()
 {
@@ -259,16 +265,19 @@ int main()
 }
 </code></pre>
 
-<p>上述代码将runtime error。因为对于<code>auto_ptr</code>而言，其调用的是<code>delete</code>而非<code>delete []</code>。
-####问题3.
-<strong><code>auto_ptr</code>不能使用于一些标准的容器库</strong>。比如<code>vector</code>，<code>list</code>，<code>map</code>等等。</p>
+<p>上述代码将runtime error。因为对于<code>auto_ptr</code>而言，其调用的是<code>delete</code>而非<code>delete []</code>。</p>
+
+<h4 id="问题3">问题3</h4>
+
+<p><strong><code>auto_ptr</code>不能使用于一些标准的容器库</strong>。比如<code>vector</code>，<code>list</code>，<code>map</code>等等。</p>
 
 <p>C++11提出了新型的智能指针，并且都赋予了其相应的意图。</p>
 
-<p>###2.2 shared_ptr</p>
+<h3 id="2-2-shared-ptr">2.2 shared_ptr</h3>
 
-<p>####creation :
-shared_ptr设计的目的很简单：多个共享指针可以指向同一个对象，而当最后一个共享指针在作用域范围内结束时，内存才会被自动的释放。</p>
+<h4 id="creation">Creation</h4>
+
+<p>shared_ptr设计的目的很简单：多个共享指针可以指向同一个对象，而当最后一个共享指针在作用域范围内结束时，内存才会被自动的释放。</p>
 
 <pre><code class="language-C++">int main()
 {
@@ -293,7 +302,7 @@ shared_ptr设计的目的很简单：多个共享指针可以指向同一个对�
 
 <p>上述代码创建了一个<code>shared_ptr</code>指针指向了一个装着整型值且值为100的内存块，并且引用计数为1,。当其他共享指针通过<code>sptr1</code>来创建时，引用计数将为2。这种引用称为强引用<code>strong reference</code>。除此之外，还有弱引用<code>weak reference</code>。</p>
 
-<p>####destruction ：</p>
+<h4 id="destruction">Destruction</h4>
 
 <pre><code class="language-C++">#include &lt;iostream&gt;
 #include &lt;memory&gt;
@@ -326,20 +335,26 @@ int main()
 }
 </code></pre>
 
-<p>用户可以显式的调用函数，lambda表达式，函数对象来调用对于<code>shared_ptr</code>为数组对象的析构函数<code>delete[]</code>。
-####Interface（接口）
-<code>shared_ptr</code>提供解引用<code>*</code>， 以及<code>-&gt;</code>来普通指针的相关操作。同时，还提供了以下的接口:</p>
+<p>用户可以显式的调用函数，lambda表达式，函数对象来调用对于<code>shared_ptr</code>为数组对象的析构函数<code>delete[]</code>。</p>
+
+<h4 id="interface-接口">Interface（接口）</h4>
+
+<p><code>shared_ptr</code>提供解引用<code>*</code>， 以及<code>-&gt;</code>来普通指针的相关操作。同时，还提供了以下的接口:</p>
 
 <ul>
 <li><code>get()</code>： To get the resource associated with the <code>shared_ptr</code>.</li>
 <li><code>reset()</code>： To yield the ownership of the associated memory block. If this is the last <code>shared_ptr</code>owning the resource, then the resource is released automatically.</li>
 <li><code>unique</code>: To know whether the resource is managed by only this <code>shared_ptr</code> instance.</li>
-<li><code>operator bool</code>: To check whether the <code>shared_ptr</code> owns a memory block or not. Can be used with an <code>if</code> condition.
-####Issue（问题）</li>
+<li><code>operator bool</code>: To check whether the <code>shared_ptr</code> owns a memory block or not. Can be used with an <code>if</code> condition.</li>
+</ul>
+
+<h4 id="issue-问题">Issue（问题）</h4>
+
+<ul>
 <li>当一个内存块与<code>shared_ptr</code>绑定相关，并且属于不同组时，将会发生错误。所有的<code>shared_ptr</code>共享一个组的同一个共享引用。</li>
 </ul>
 
-<pre><code class="language-C++"> int main()
+<pre><code class="language-C++">int main()
 {
 	    shared_ptr&lt;int&gt; sptr1(new int);
 	    shared_ptr&lt;int&gt; sptr2 = sptr1;
@@ -349,25 +364,25 @@ int main()
 }
 </code></pre>
 
-<p>以下表格给出了相应的引用计数
- <img src="http://img.blog.csdn.net/20150722150330985" alt="shared_ptr结果" />
+<p>以下表格给出了相应的引用计数</p>
+
+<p><img src="http://img.blog.csdn.net/20150722150330985" alt="shared_ptr结果" />
  以上代码运行正常。</p>
 
 <p>然而当使用以下代码时：</p>
 
-<pre><code>```
-int main() 
+<pre><code>int main() 
 {
     int *p = new int;
     shared_ptr&lt;int&gt; sptr1(p);
     shared_ptr&lt;int&gt; sptr2(p);
     return 0;
 }
-```
 </code></pre>
 
-<p>引用计数表如下：
-<img src="http://img.blog.csdn.net/20150722151016970" alt="shared_ptr crash" />
+<p>引用计数表如下：</p>
+
+<p><img src="http://img.blog.csdn.net/20150722151016970" alt="shared_ptr crash" />
 为了避免这种情况的发生，最好不用从裸指针中建立共享指针。</p>
 
 <ul>
@@ -411,11 +426,13 @@ int main()
 }
 </code></pre>
 
-<p>当类A包含了指向B的共享指针，而类B包含了指向A的共享指针时，<code>sptrA</code>和<code>sptrB</code>相关的资源都将不会被释放。结果如下图：
-<img src="http://img.blog.csdn.net/20150722152409811" alt="cyclic reference crash example" /></p>
+<p>当类A包含了指向B的共享指针，而类B包含了指向A的共享指针时，<code>sptrA</code>和<code>sptrB</code>相关的资源都将不会被释放。结果如下图：</p>
 
-<p>###2.3 weak_ptr
-一个弱指针，提供的是一种共享语义定义而不是拥有语义定义。这就意味着一个弱指针可以通过<code>shared_ptr</code>共享资源。所以要创建弱指针，必须是已经拥有资源但是是一个共享指针。</p>
+<p><img src="http://img.blog.csdn.net/20150722152409811" alt="cyclic reference crash example" /></p>
+
+<h3 id="2-3-weak-ptr">2.3 weak_ptr</h3>
+
+<p>一个弱指针，提供的是一种共享语义定义而不是拥有语义定义。这就意味着一个弱指针可以通过<code>shared_ptr</code>共享资源。所以要创建弱指针，必须是已经拥有资源但是是一个共享指针。</p>
 
 <p>一个弱指针并不允许诸如普通指针所提供的<code>*</code>和<code>-&gt;</code>。因为他并不是资源的拥有者。</p>
 
@@ -517,11 +534,13 @@ int main()
 
 <p><img src="http://img.blog.csdn.net/20151110142701562" alt="上述程序运行结果" /></p>
 
-<p>###2.4 unique_ptr
-<code>unique_ptr</code>几乎是易出错的<code>auto_ptr</code>的另一种形式。<code>unique_ptr</code>遵循专用所有权语义。在任何时刻，资源只被唯一的一个<code>unique_ptr</code>所占有。当<code>auto_ptr</code>不在作用域范围内时，资源就会被释放。当一个资源被其他资源重写时，如果先前的资源已经被释放，这保证了相关的资源也会被释放。</p>
+<h3 id="2-4-unique-ptr">2.4 unique_ptr</h3>
 
-<p>####creation（创建）
-<code>unique_ptr</code>创建的过程和<code>shared_ptr</code>创建的过程大同小异，所不同的是创建的数组形式的对象。</p>
+<p><code>unique_ptr</code>几乎是易出错的<code>auto_ptr</code>的另一种形式。<code>unique_ptr</code>遵循专用所有权语义。在任何时刻，资源只被唯一的一个<code>unique_ptr</code>所占有。当<code>auto_ptr</code>不在作用域范围内时，资源就会被释放。当一个资源被其他资源重写时，如果先前的资源已经被释放，这保证了相关的资源也会被释放。</p>
+
+<h4 id="creation-创建">Creation（创建）</h4>
+
+<p><code>unique_ptr</code>创建的过程和<code>shared_ptr</code>创建的过程大同小异，所不同的是创建的数组形式的对象。</p>
 
 <pre><code class="language-C++">unique_ptr&lt;int&gt; uptr(new int);
 </code></pre>
@@ -535,15 +554,17 @@ int main()
 
 <p>需要记住的是：<code>unique_ptr</code>并不提供复制机制<code>copy semantics</code>（包括复制赋值<code>copy assignment</code>以及复制构造函数<code>copy construction</code>）而是一种移动机制。</p>
 
-<p>####Interface（接口）
-<code>unique_ptr</code>提供的接口与普通常规指针的接口非常相似，但是并不提供指针运算。
+<h4 id="interface-接口-1">Interface（接口）</h4>
+
+<p><code>unique_ptr</code>提供的接口与普通常规指针的接口非常相似，但是并不提供指针运算。
 <code>unique_ptr</code>提供<code>release()</code>函数来进行<code>yield the ownership</code>。
 <code>release()</code>和<code>reset()</code>函数的区别在于，<code>reset()</code>会对资源进行销毁。</p>
 
-<p><strong>参考文献：</strong>
-&gt;<a href="http://blog.csdn.net/coolmeme/article/details/43266319">http://blog.csdn.net/coolmeme/article/details/43266319</a></p>
+<p><strong>参考文献：</strong></p>
 
 <blockquote>
+<p><a href="http://blog.csdn.net/coolmeme/article/details/43266319">http://blog.csdn.net/coolmeme/article/details/43266319</a></p>
+
 <p><a href="http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers">http://www.codeproject.com/Articles/541067/Cplusplus-Smart-Pointers</a></p>
 </blockquote></div></article>
 					
